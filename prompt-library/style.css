@@ -1,0 +1,102 @@
+/* simple light-mode developer theme */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+body {
+  background: #f4f4f7;
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: #282c34;
+  color: #fff;
+  padding: 1rem;
+  text-align: center;
+}
+main {
+  flex: 1;
+  padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+#form-section {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+.field {
+  margin-bottom: 0.75rem;
+}
+.field label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+#save-btn {
+  background: #61dafb;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  color: #282c34;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+}
+#save-btn:hover {
+  background: #52c7e9;
+}
+#cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+.card .title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.card .preview {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.card .full {
+  font-size: 0.85rem;
+  color: #333;
+  white-space: pre-wrap;
+  margin-bottom: 1rem;
+}
+.card .delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #e55353;
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.card .delete-btn:hover {
+  background: #c73e3e;
+}
