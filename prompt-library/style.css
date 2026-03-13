@@ -107,3 +107,84 @@ nav .filter-btn:hover {
 .rating .star:active {
   transform: scale(1.2);
 }
+
+/* notes section */
+.notes-icon {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s;
+}
+
+.notes-icon:hover {
+  transform: scale(1.1);
+}
+
+.notes-panel {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 300px;
+  }
+}
+
+.notes-textarea {
+  width: 100%;
+  height: 80px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.char-counter {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: right;
+  margin-bottom: 10px;
+}
+
+.notes-save-btn,
+.notes-delete-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 5px;
+  transition: background-color 0.2s;
+}
+
+.notes-save-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.notes-save-btn:hover {
+  background-color: #0056b3;
+}
+
+.notes-delete-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.notes-delete-btn:hover {
+  background-color: #c82333;
+}
