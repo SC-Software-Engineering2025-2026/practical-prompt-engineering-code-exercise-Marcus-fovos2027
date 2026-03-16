@@ -108,6 +108,39 @@ nav .filter-btn:hover {
   transform: scale(1.2);
 }
 
+.metadata {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.metadata-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.metadata-label {
+  font-weight: 600;
+}
+
+.token-estimate {
+  margin-top: 4px;
+}
+
+.token-estimate.confidence-high {
+  color: #2ecc71;
+}
+
+.token-estimate.confidence-medium {
+  color: #f1c40f;
+}
+
+.token-estimate.confidence-low {
+  color: #e74c3c;
+}
+
 /* notes section */
 .notes-icon {
   position: absolute;

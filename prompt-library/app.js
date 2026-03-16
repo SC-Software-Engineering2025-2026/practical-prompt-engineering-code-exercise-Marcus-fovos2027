@@ -33,6 +33,180 @@ let prompts = [
 
 const DRAFT_STORAGE_KEY = "promptLibraryDraftNotes";
 
+// -------------------- Metadata tracking --------------------
+
+function isValidISODate(str) {
+  if (typeof str !== "string") return false;
+  // Quick sanity check + Date.parse
+  const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  return isoRegex.test(str) && !Number.isNaN(Date.parse(str));
+}
+
+function estimateTokens(text, isCode) {
+  if (typeof text !== "string") {
+    throw new Error("estimateTokens: text must be a string");
+  }
+
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+  const charCount = text.length;
+
+  let min = 0.75 * wordCount;
+  let max = 0.25 * charCount;
+
+  if (isCode) {
+    min *= 1.3;
+    max *= 1.3;
+  }
+
+  // Ensure sensible numbers
+  min = Math.max(0, Math.round(min));
+  max = Math.max(min, Math.round(max));
+
+  const tokens = max;
+  let confidence = "high";
+  if (tokens > 5000) {
+    confidence = "low";
+  } else if (tokens > 1000) {
+    confidence = "medium";
+  }
+
+  return {
+    min,
+    max,
+    confidence,
+  };
+}
+
+function getIsoNow() {
+  return new Date().toISOString();
+}
+
+function trackModel(modelName, content) {
+  if (typeof modelName !== "string" || modelName.trim() === "") {
+    throw new Error("trackModel: modelName must be a non-empty string");
+  }
+  if (modelName.length > 100) {
+    throw new Error("trackModel: modelName must be 100 characters or fewer");
+  }
+  if (typeof content !== "string") {
+    throw new Error("trackModel: content must be a string");
+  }
+
+  const createdAt = getIsoNow();
+  const tokenEstimate = estimateTokens(content, false);
+  return {
+    model: modelName.trim(),
+    createdAt,
+    updatedAt: createdAt,
+    tokenEstimate,
+  };
+}
+
+function updateTimestamps(metadata) {
+  if (!metadata || typeof metadata !== "object") {
+    throw new Error("updateTimestamps: metadata must be an object");
+  }
+  if (!isValidISODate(metadata.createdAt)) {
+    throw new Error(
+      "updateTimestamps: createdAt must be a valid ISO 8601 string",
+    );
+  }
+
+  const now = getIsoNow();
+  if (now < metadata.createdAt) {
+    throw new Error(
+      "updateTimestamps: updatedAt cannot be earlier than createdAt",
+    );
+  }
+
+  return {
+    ...metadata,
+    updatedAt: now,
+  };
+}
+
+function ensurePromptMetadata(prompt) {
+  if (!prompt || typeof prompt !== "object") return;
+
+  if (!prompt.metadata) {
+    let createdAt;
+    if (isValidISODate(prompt.createdAt)) {
+      createdAt = prompt.createdAt;
+    } else if (
+      typeof prompt.createdAt === "string" &&
+      !Number.isNaN(Date.parse(prompt.createdAt))
+    ) {
+      createdAt = new Date(prompt.createdAt).toISOString();
+    } else {
+      createdAt = getIsoNow();
+    }
+
+    const modelName =
+      typeof prompt.model === "string" && prompt.model.trim()
+        ? prompt.model.trim()
+        : "unknown";
+
+    prompt.metadata = {
+      model: modelName,
+      createdAt,
+      updatedAt: createdAt,
+      tokenEstimate: estimateTokens(prompt.content || "", false),
+    };
+    return;
+  }
+
+  // Validate/repair basic expectations
+  if (!isValidISODate(prompt.metadata.createdAt)) {
+    if (
+      typeof prompt.metadata.createdAt === "string" &&
+      !Number.isNaN(Date.parse(prompt.metadata.createdAt))
+    ) {
+      prompt.metadata.createdAt = new Date(
+        prompt.metadata.createdAt,
+      ).toISOString();
+    } else {
+      prompt.metadata.createdAt = getIsoNow();
+    }
+  }
+
+  if (!isValidISODate(prompt.metadata.updatedAt)) {
+    if (
+      typeof prompt.metadata.updatedAt === "string" &&
+      !Number.isNaN(Date.parse(prompt.metadata.updatedAt))
+    ) {
+      prompt.metadata.updatedAt = new Date(
+        prompt.metadata.updatedAt,
+      ).toISOString();
+    } else {
+      prompt.metadata.updatedAt = prompt.metadata.createdAt;
+    }
+  }
+
+  try {
+    prompt.metadata = updateTimestamps(prompt.metadata);
+  } catch (e) {
+    // If update is invalid, keep existing metadata but ensure updatedAt exists
+    if (!prompt.metadata.updatedAt) {
+      prompt.metadata.updatedAt = prompt.metadata.createdAt;
+    }
+  }
+}
+
+function touchPromptMetadata(prompt) {
+  if (!prompt || typeof prompt !== "object") return;
+  if (!prompt.metadata) {
+    ensurePromptMetadata(prompt);
+    return;
+  }
+
+  try {
+    prompt.metadata = updateTimestamps(prompt.metadata);
+  } catch (e) {
+    console.error("Failed to touch prompt metadata:", e);
+  }
+}
+
 function saveDraftNotes(promptId, notes) {
   const drafts = JSON.parse(sessionStorage.getItem(DRAFT_STORAGE_KEY) || "{}");
   drafts[promptId] = notes;
@@ -67,12 +241,17 @@ function loadFromStorage() {
     // subsequent toggles are persisted
     saveToStorage(prompts);
   }
+
+  // Ensure every prompt has structured metadata
+  prompts.forEach((p) => ensurePromptMetadata(p));
+  saveToStorage(prompts);
 }
 
 function toggleFavorite(promptId) {
   const prompt = prompts.find((p) => p.id === promptId);
   if (!prompt) return;
   prompt.isFavorite = !prompt.isFavorite;
+  touchPromptMetadata(prompt);
   saveToStorage(prompts);
   renderPrompts();
 }
@@ -81,6 +260,7 @@ function setRating(promptId, value) {
   const prompt = prompts.find((p) => p.id === promptId);
   if (!prompt) return;
   prompt.rating = value;
+  touchPromptMetadata(prompt);
   saveToStorage(prompts);
   renderPrompts();
 }
@@ -101,6 +281,7 @@ function saveNotes(promptId, notes) {
   if (!prompt) return;
   try {
     prompt.notes = notes;
+    touchPromptMetadata(prompt);
     saveToStorage(prompts);
   } catch (e) {
     if (e.name === "QuotaExceededError") {
@@ -165,6 +346,8 @@ function createRatingElement(prompt) {
 }
 
 function createCard(prompt) {
+  ensurePromptMetadata(prompt);
+
   const div = document.createElement("div");
   div.className = "card";
 
@@ -181,6 +364,50 @@ function createCard(prompt) {
 
   const content = document.createElement("p");
   content.textContent = prompt.content;
+
+  const metadataContainer = document.createElement("div");
+  metadataContainer.className = "metadata";
+
+  const modelLine = document.createElement("div");
+  modelLine.className = "metadata-row";
+  modelLine.innerHTML =
+    '<span class="metadata-label">Model:</span> ' +
+    (prompt.metadata?.model || "unknown");
+
+  const formatDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (e) {
+      return iso;
+    }
+  };
+
+  const createdLine = document.createElement("div");
+  createdLine.className = "metadata-row";
+  createdLine.innerHTML =
+    '<span class="metadata-label">Created:</span> ' +
+    formatDate(prompt.metadata?.createdAt || "");
+
+  const updatedLine = document.createElement("div");
+  updatedLine.className = "metadata-row";
+  updatedLine.innerHTML =
+    '<span class="metadata-label">Updated:</span> ' +
+    formatDate(prompt.metadata?.updatedAt || "");
+
+  const token = prompt.metadata?.tokenEstimate || {
+    min: 0,
+    max: 0,
+    confidence: "low",
+  };
+  const tokenLine = document.createElement("div");
+  tokenLine.className = "metadata-row token-estimate";
+  tokenLine.textContent = `Tokens: ${token.min} - ${token.max} (${token.confidence})`;
+  tokenLine.classList.add(`confidence-${token.confidence}`);
+
+  metadataContainer.appendChild(modelLine);
+  metadataContainer.appendChild(createdLine);
+  metadataContainer.appendChild(updatedLine);
+  metadataContainer.appendChild(tokenLine);
 
   // notes icon
   const notesIcon = document.createElement("span");
@@ -237,6 +464,7 @@ function createCard(prompt) {
   div.appendChild(notesIcon);
   div.appendChild(title);
   div.appendChild(content);
+  div.appendChild(metadataContainer);
 
   // rating
   div.appendChild(createRatingElement(prompt));
@@ -253,6 +481,14 @@ function renderPrompts() {
   if (currentFilter === "favorites") {
     listToRender = prompts.filter((p) => p.isFavorite);
   }
+
+  // Sort by createdAt descending (newest first)
+  listToRender = listToRender.slice().sort((a, b) => {
+    const aCreated = (a.metadata?.createdAt || a.createdAt || "").toString();
+    const bCreated = (b.metadata?.createdAt || b.createdAt || "").toString();
+    return bCreated.localeCompare(aCreated);
+  });
+
   if (listToRender.length === 0) {
     const msg = document.createElement("p");
     msg.textContent = "No prompts to show.";
