@@ -32,6 +32,8 @@ let prompts = [
 ];
 
 const DRAFT_STORAGE_KEY = "promptLibraryDraftNotes";
+const STORAGE_KEY = "promptLibraryPrompts";
+const EXPORT_VERSION = "1.0";
 
 // -------------------- Metadata tracking --------------------
 
@@ -232,19 +234,249 @@ function loadFromStorage() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     try {
-      prompts = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        prompts = parsed;
+      } else {
+        console.warn("Stored prompts not an array; resetting to defaults");
+      }
     } catch (e) {
       console.warn("failed to parse stored prompts", e);
     }
-  } else {
-    // nothing in storage yet — write the initial sample set so that
-    // subsequent toggles are persisted
-    saveToStorage(prompts);
+  }
+
+  // If we didn't load a valid array, persist the initial sample prompts.
+  if (!Array.isArray(prompts)) {
+    prompts = [];
   }
 
   // Ensure every prompt has structured metadata
   prompts.forEach((p) => ensurePromptMetadata(p));
   saveToStorage(prompts);
+}
+
+function computeExportStats(arr) {
+  const totalPrompts = Array.isArray(arr) ? arr.length : 0;
+  const validRatings = (Array.isArray(arr) ? arr : [])
+    .map((p) => (typeof p.rating === "number" ? p.rating : NaN))
+    .filter(Number.isFinite);
+  const averageRating =
+    validRatings.length > 0
+      ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
+      : null;
+
+  const modelCounts = (Array.isArray(arr) ? arr : []).reduce((acc, p) => {
+    const model =
+      (p.metadata?.model || p.model || "unknown")
+        .toString()
+        .trim() || "unknown";
+    acc[model] = (acc[model] || 0) + 1;
+    return acc;
+  }, {});
+
+  const mostUsedModel = Object.keys(modelCounts).reduce((best, model) => {
+    if (!best) return model;
+    return modelCounts[model] > modelCounts[best] ? model : best;
+  }, null);
+
+  return {
+    totalPrompts,
+    averageRating,
+    mostUsedModel,
+  };
+}
+
+function validatePromptObject(prompt) {
+  if (!prompt || typeof prompt !== "object") {
+    throw new Error("Each prompt must be an object");
+  }
+  if (typeof prompt.id !== "string" || !prompt.id.trim()) {
+    throw new Error("Prompt is missing a valid id");
+  }
+  if (typeof prompt.title !== "string") {
+    throw new Error(`Prompt (${prompt.id}) is missing a title`);
+  }
+  if (typeof prompt.content !== "string") {
+    throw new Error(`Prompt (${prompt.id}) is missing content`);
+  }
+  // ensure metadata exists for export/import purpose
+  ensurePromptMetadata(prompt);
+  return true;
+}
+
+function createExportPayload() {
+  // Refresh from storage to ensure latest user changes are included.
+  loadFromStorage();
+
+  // Clone prompts so we don't mutate application state during export.
+  const payloadPrompts = JSON.parse(JSON.stringify(prompts));
+  payloadPrompts.forEach((p) => validatePromptObject(p));
+
+  return {
+    version: EXPORT_VERSION,
+    exportedAt: getIsoNow(),
+    stats: computeExportStats(payloadPrompts),
+    prompts: payloadPrompts,
+  };
+}
+
+function downloadJsonBlob(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportPrompts() {
+  try {
+    const payload = createExportPayload();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `prompt-library-export-${timestamp}.json`;
+    downloadJsonBlob(payload, filename);
+    alert(`Export successful! File downloaded as ${filename}`);
+  } catch (e) {
+    console.error(e);
+    alert(`Export failed: ${e.message}`);
+  }
+}
+
+function isCompatibleExportVersion(version) {
+  if (typeof version !== "string") return false;
+  const [major] = version.split(".");
+  const [ourMajor] = EXPORT_VERSION.split(".");
+  return major === ourMajor;
+}
+
+function validateImportPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Import file is not a valid JSON object");
+  }
+  if (typeof payload.version !== "string") {
+    throw new Error("Import file is missing a version");
+  }
+  if (!Array.isArray(payload.prompts)) {
+    throw new Error("Import file is missing prompts array");
+  }
+  payload.prompts.forEach(validatePromptObject);
+}
+
+function restoreFromBackup(backup) {
+  if (backup == null) {
+    localStorage.removeItem(STORAGE_KEY);
+  } else {
+    localStorage.setItem(STORAGE_KEY, backup);
+  }
+}
+
+function importPromptsFromObject(imported) {
+  validateImportPayload(imported);
+
+  if (!isCompatibleExportVersion(imported.version)) {
+    const proceed = confirm(
+      `This file was exported with version ${imported.version}, which may not be fully compatible with this app (expected ${EXPORT_VERSION}). Click OK to continue or Cancel to abort.`,
+    );
+    if (!proceed) {
+      return;
+    }
+  }
+
+  const existingById = new Map(prompts.map((p) => [p.id, p]));
+  const incomingById = new Map();
+  imported.prompts.forEach((p) => {
+    if (incomingById.has(p.id)) {
+      throw new Error(`Import file contains duplicate prompt id: ${p.id}`);
+    }
+    incomingById.set(p.id, p);
+  });
+
+  const duplicateIds = imported.prompts
+    .map((p) => p.id)
+    .filter((id) => existingById.has(id));
+
+  let overwriteExisting = false;
+  if (duplicateIds.length > 0) {
+    overwriteExisting = confirm(
+      `${duplicateIds.length} prompts already exist in your library. Click OK to overwrite existing prompts with imported ones, or Cancel to keep existing prompts and only add new ones.`,
+    );
+  }
+
+  const backup = localStorage.getItem(STORAGE_KEY);
+  try {
+    const merged = [...prompts];
+    const indexById = new Map(merged.map((p, idx) => [p.id, idx]));
+
+    imported.prompts.forEach((incoming) => {
+      const existingIndex = indexById.get(incoming.id);
+      if (existingIndex != null) {
+        if (overwriteExisting) {
+          merged[existingIndex] = incoming;
+        }
+      } else {
+        merged.push(incoming);
+      }
+    });
+
+    prompts = merged;
+    prompts.forEach((p) => ensurePromptMetadata(p));
+    saveToStorage(prompts);
+    renderPrompts();
+    alert("Import successful!");
+  } catch (e) {
+    console.error(e);
+    restoreFromBackup(backup);
+    try {
+      prompts = backup ? JSON.parse(backup) : [];
+    } catch {
+      prompts = [];
+    }
+    renderPrompts();
+    alert(`Import failed: ${e.message}`);
+  }
+}
+
+function handleImportFileChange(event) {
+  const file = (event.target.files || [])[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = reader.result;
+      const parsed = JSON.parse(text);
+      importPromptsFromObject(parsed);
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to import: ${e.message}`);
+    }
+  };
+  reader.onerror = () => {
+    alert("Failed to read import file.");
+  };
+  reader.readAsText(file);
+
+  // Reset so the same file can be selected again later
+  event.target.value = "";
+}
+
+function setupImportExportButtons() {
+  const exportBtn = document.getElementById("export-btn");
+  const importBtn = document.getElementById("import-btn");
+  const importFile = document.getElementById("import-file");
+
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportPrompts);
+  }
+  if (importBtn && importFile) {
+    importBtn.addEventListener("click", () => importFile.click());
+    importFile.addEventListener("change", handleImportFileChange);
+  }
 }
 
 function toggleFavorite(promptId) {
@@ -522,4 +754,5 @@ function setupFilterButtons() {
 // initialize
 loadFromStorage();
 setupFilterButtons();
+setupImportExportButtons();
 renderPrompts();
