@@ -1,0 +1,243 @@
+/* basic reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  padding: 20px;
+  color: #333;
+}
+
+header {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+nav .filter-btn {
+  background: none;
+  border: 1px solid #333;
+  padding: 5px 10px;
+  margin-left: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.import-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn {
+  background: none;
+  border: 1px solid #333;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+nav .filter-btn.active,
+nav .filter-btn:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 6px;
+  padding: 15px;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.1s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.card p {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.favorite-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform 0.2s,
+    color 0.2s;
+  color: #777;
+}
+
+.favorite-icon.favorited {
+  color: #e74c3c;
+}
+
+.favorite-icon:active {
+  transform: scale(1.2);
+}
+
+/* rating stars */
+.rating {
+  margin-top: 10px;
+}
+
+.rating .star {
+  font-size: 1rem;
+  cursor: pointer;
+  color: #ccc;
+  transition:
+    color 0.2s,
+    transform 0.1s;
+  display: inline-block;
+  margin-right: 2px;
+}
+
+.rating .star.filled {
+  color: #f1c40f;
+}
+
+.rating .star:active {
+  transform: scale(1.2);
+}
+
+.metadata {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.metadata-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.metadata-label {
+  font-weight: 600;
+}
+
+.token-estimate {
+  margin-top: 4px;
+}
+
+.token-estimate.confidence-high {
+  color: #2ecc71;
+}
+
+.token-estimate.confidence-medium {
+  color: #f1c40f;
+}
+
+.token-estimate.confidence-low {
+  color: #e74c3c;
+}
+
+/* notes section */
+.notes-icon {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s;
+}
+
+.notes-icon:hover {
+  transform: scale(1.1);
+}
+
+.notes-panel {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 300px;
+  }
+}
+
+.notes-textarea {
+  width: 100%;
+  height: 80px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.char-counter {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: right;
+  margin-bottom: 10px;
+}
+
+.notes-save-btn,
+.notes-delete-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 5px;
+  transition: background-color 0.2s;
+}
+
+.notes-save-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.notes-save-btn:hover {
+  background-color: #0056b3;
+}
+
+.notes-delete-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.notes-delete-btn:hover {
+  background-color: #c82333;
+}

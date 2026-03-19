@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Library</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Prompt Library</h1>
+      <nav>
+        <button id="filter-all" class="filter-btn active">All</button>
+        <button id="filter-favorites" class="filter-btn">Favorites</button>
+      </nav>
+      <div class="import-export">
+        <button id="export-btn" class="action-btn">Export</button>
+        <button id="import-btn" class="action-btn">Import</button>
+        <input id="import-file" type="file" accept="application/json" style="display:none" />
+      </div>
+    </header>
+    <main>
+      <div id="prompt-container" class="card-container"></div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
