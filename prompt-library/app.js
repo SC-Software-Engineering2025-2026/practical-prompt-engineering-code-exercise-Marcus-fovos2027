@@ -267,9 +267,8 @@ function computeExportStats(arr) {
 
   const modelCounts = (Array.isArray(arr) ? arr : []).reduce((acc, p) => {
     const model =
-      (p.metadata?.model || p.model || "unknown")
-        .toString()
-        .trim() || "unknown";
+      (p.metadata?.model || p.model || "unknown").toString().trim() ||
+      "unknown";
     acc[model] = (acc[model] || 0) + 1;
     return acc;
   }, {});
